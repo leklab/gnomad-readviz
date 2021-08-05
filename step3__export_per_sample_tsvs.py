@@ -44,7 +44,7 @@ def parse_args():
         default=10**9,
     )
     p.add_argument(
-        "sample_ids_path",
+        "--sample_ids_path",
         help="A text file containing one sample id per line",
     )
     args = p.parse_args()
@@ -95,6 +95,14 @@ def export_per_sample_tsvs(ht, sample_ids, output_bucket_path, n_partitions_per_
     start_time = datetime.datetime.now()
     for i, sample_id in enumerate(sorted(sample_ids)):
         per_sample_ht = ht.filter(ht.S == sample_id, keep=True)
+
+        if i == 0:
+            logging.info("Output schema:")
+            per_sample_ht.describe()
+
+        if per_sample_ht.count() < 1:
+            continue
+
         if n_partitions_per_sample > 1:
             per_sample_ht = per_sample_ht.naive_coalesce(n_partitions_per_sample)
 
@@ -102,11 +110,7 @@ def export_per_sample_tsvs(ht, sample_ids, output_bucket_path, n_partitions_per_
         per_sample_ht = per_sample_ht.key_by()
 
         # re-order columns and drop sample id since it's in the .tsv filename
-        per_sample_ht = per_sample_ht.select('chrom', 'pos', 'ref', 'alt', 'het_or_hom_or_hemi', 'GQ')
-
-        if i == 0:
-            logging.info("Output schema:")
-            per_sample_ht.describe()
+        per_sample_ht = per_sample_ht.select('chrom', 'pos', 'ref', 'alt', 'het_or_hom_or_hemi', 'HL')
 
         if n_partitions_per_sample > 1:
             tsv_output_path = os.path.join(output_bucket_path, sample_id)

@@ -67,12 +67,13 @@ def explode_table_by_sample(ht):
 	ht.describe()
 
 	ht = ht.annotate(
-		samples_w_het_var=ht.samples_w_het_var.map(lambda x: hl.struct(S=x.S, GQ=x.GQ, het_or_hom_or_hemi=1)),
-		samples_w_hom_var=ht.samples_w_hom_var.map(lambda x: hl.struct(S=x.S, GQ=x.GQ, het_or_hom_or_hemi=2)),
-		samples_w_hemi_var=ht.samples_w_hemi_var.map(lambda x: hl.struct(S=x.S, GQ=x.GQ, het_or_hom_or_hemi=3)),
+		samples_w_het_var=ht.samples_w_het_var.map(lambda x: hl.struct(S=x.S, HL=x.HL, het_or_hom_or_hemi=1)),
+		samples_w_hom_var=ht.samples_w_hom_var.map(lambda x: hl.struct(S=x.S, HL=x.HL, het_or_hom_or_hemi=2)),
+		#samples_w_hemi_var=ht.samples_w_hemi_var.map(lambda x: hl.struct(S=x.S, GQ=x.GQ, het_or_hom_or_hemi=3)),
 	)
 
-	ht = ht.select(samples=ht.samples_w_het_var.extend(ht.samples_w_hom_var.extend(ht.samples_w_hemi_var)))
+	#ht = ht.select(samples=ht.samples_w_het_var.extend(ht.samples_w_hom_var.extend(ht.samples_w_hemi_var)))
+	ht = ht.select(samples=ht.samples_w_het_var.extend(ht.samples_w_hom_var))
 
 	ht = ht.explode(ht.samples)
 
@@ -87,7 +88,8 @@ def rekey_by_sample(ht):
 		ref=ht.alleles[0],
 		alt=ht.alleles[1],
 		het_or_hom_or_hemi=ht.samples.het_or_hom_or_hemi,
-		GQ=ht.samples.GQ,
+		#GQ=ht.samples.GQ,
+		HL=ht.samples.HL,
 		S=ht.samples.S,
 	)
 	ht = ht.key_by(ht.S)
@@ -115,32 +117,41 @@ def main():
 
 	output_file_prefix = os.path.basename(args.input_ht).replace(".ht", "")
 	output_dir = args.output_dir or os.path.dirname(args.input_ht)
-	exploded_ht_keyed_by_position_bin = os.path.join(output_dir, f"{output_file_prefix}_keyed_by_position_bin.ht")
-	exploded_ht_checkpoint_path = os.path.join(output_dir, f"{output_file_prefix}_exploded_with_key.ht")
+	
+	#exploded_ht_keyed_by_position_bin = os.path.join(output_dir, f"{output_file_prefix}_keyed_by_position_bin.ht")
+	#exploded_ht_checkpoint_path = os.path.join(output_dir, f"{output_file_prefix}_exploded_with_key.ht")
 	exploded_ht_keyed_by_sample_path = os.path.join(output_dir, f"{output_file_prefix}_exploded_keyed_by_sample.ht")
+	
 	print(f"Input: {args.input_ht}")
 	print(f"Output dir: {output_dir}")
 
 	ht = hl.read_table(args.input_ht)
 
+	'''
 	if args.remove_AC0_variants:
 		if not args.variants_ht:
 			raise ValueError("--variants-ht must be specified when --remove-AC0-variants flag is used")
 		ht = remove_AC0_variants(ht, args.variants_ht)
+	'''
 
-	ht_keyed_by_position_bin = rekey_by_position_bin(ht)
+	#ht_keyed_by_position_bin = rekey_by_position_bin(ht)
+
+	'''
 	ht_keyed_by_position_bin.write(
 		exploded_ht_keyed_by_position_bin,
 		overwrite=args.overwrite_checkpoints,
 	)
+	'''
 
 	ht = explode_table_by_sample(ht)
 
+	'''
 	ht = ht.checkpoint(
 		exploded_ht_checkpoint_path,
 		overwrite=args.overwrite_checkpoints,
 		_read_if_exists=not args.overwrite_checkpoints,
 	)
+	'''
 
 	ht_keyed_by_sample = rekey_by_sample(ht)
 
